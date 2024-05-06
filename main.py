@@ -3,6 +3,9 @@ import os
 from datetime import datetime
 from datetime import timedelta
 
+from utils.line import *
+
+
 def which_task(frame):
     pass
 
@@ -44,6 +47,23 @@ def main(cfg):
     cap.release()
     cv2.destroyAllWindows()
 
+def debug():
+    img_path = "/home/rp24/file/test_img/aw4.jpg"
+
+    lower_hsv = np.array([0, 0, 40])   # 直线色域 0 0 245
+    upper_hsv = np.array([180, 255, 255])
+
+    frame = cv2.imread(img_path)
+    frame = cv2.resize(frame,(600, 400),)
+    height, width, _ = frame.shape
+
+    lines = get_lines(frame, lower_hsv, upper_hsv)
+    if lines is None:
+        print("no lines")
+        return
+    cal = get_center_and_angle_len(lines)
+
+    cal.shape
 
 if __name__ == '__main__':
     cfg = {
@@ -51,4 +71,6 @@ if __name__ == '__main__':
         "output_dir": "/home/rp24/file/debug_output",
         "test_steps": 100,
     }
-    main(cfg)
+    # main(cfg)
+
+    debug()

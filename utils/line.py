@@ -84,6 +84,7 @@ def cluster_idealx_alpha(
     tx_alpha, w=600, h=400, tx_threshold=30, alpha_threshold=5, min_lines=5
 ):
     """
+    cluster the lines based on the idealx and alpha with threshold
     input: numpy array (index, data)
         data: center_x, center_y, angle, length, idealx
     output: numpy array (index, data)

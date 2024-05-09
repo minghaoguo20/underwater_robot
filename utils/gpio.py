@@ -19,11 +19,11 @@ def pack_lora_msg(Cam_Sign, Cam_Flag, Cam_Angle, Cam_Err):
 
     巡线任务当中AUV可能状态有巡线状态和识别状态
     Cam_Sign: int->1Byte 规定0代表巡线(正常运动)1代表识别(需要停止运行并且对应LED闪烁，LORA回传)巡线状态:
+    Cam_Flag: int->1Byte 规定 1:纯绿色 2:纯蓝色 3:海洋动物-章鱼 4:海洋动物-鲨鱼 5:海洋动物-海龟
     机体坐标系右向为正
     Cam_Angle: float->2Byte 16Bit 65536取整数 单位为° 有符号数 -65536/2 对应-180°,，65536/2对应180°线性
     Cam_Err: float->2Byte 待确定 可能是导线距离图片中心的大小，单位为像素值 -240到240?
     识别状态:
-    Cam_Flag: int->1Byte 规定 1:纯绿色 2:纯蓝色 3:海洋动物-章鱼 4:海洋动物-鲨鱼 5:海洋动物-海龟
     数据包传输格式:
     开头(0xFE)+ Cam Sign + Cam Flag + Cam Angle(2)+Cam Err(2)+ 累加和校验(2)+结束标志(0xFF)
     return example: b"\xFE\x01\x04\x00\x00\x00\x00\x00\x05\xFF"

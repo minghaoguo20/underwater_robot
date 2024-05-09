@@ -7,14 +7,6 @@ from utils.line import *
 from utils.gpio import *
 
 
-def which_task(frame):
-    return "line_tracking"
-
-
-def which_recognition(frame):
-    pass
-
-
 def main(cfg):
     cap = cv2.VideoCapture(0)
     last = datetime.now() - timedelta(seconds=100)
@@ -33,44 +25,64 @@ def main(cfg):
         now = datetime.now()
         ret, frame = cap.read()
         height, width, _ = frame.shape
-        cv2.imshow('frame', frame)
+        # cv2.imshow('frame', frame)
 
         if now > last + timedelta(seconds=cfg["sample_delta"]):
             last = now
 
-            # classify task
-            # 1. line tracking
-            # 2. object recognition
-            task = which_task(frame)
+            lines = get_lines(frame, "bgr", lower_rgb, upper_rgb)
+            if lines is None:
+                continue
+            cal = get_center_and_angle_len(lines)
 
-            if task == "line_tracking":
-                lines = get_lines(frame, "bgr", lower_rgb, upper_rgb)
-                if lines is None:
-                    continue
-                cal = get_center_and_angle_len(lines)
+            lines, cal = get_lines_and_cal(lines, cal)
+            if lines is None:
+                continue
 
-                lines, cal = get_lines_and_cal(lines, cal)
+            # # for the first iteration
+            # if line_to_follow is None:
+            #     last_following_line, last_following_cal = lines[0], cal[0]
+            #     # line_to_follow, cal_to_follow = lines[0], cal[0]
 
-                if in_center(last_following_line, x_percent=0.2, y_percent=0.2):
-                    prepare_to_transfer = True
+            xy_percent = 0.2
+            if in_center(last_following_line, x_percent=xy_percent, y_percent=xy_percent):
+                prepare_to_transfer = True
 
-                    pass
-                line_to_follow, cal_to_follow = get_line_and_cal_to_follow(lines, cal, last_following_line, last_following_cal)
-
-                cam_angle = cal_to_follow[2] - 90
-                cam_err = (width / 2 - cal_to_follow[4]) * np.sin(
-                    np.pi - cal_to_follow[2] * np.pi / 180
+            if prepare_to_transfer:
+                min_dis = 100000
+                for line, acal in zip(lines, cal):
+                    if in_center(line, x_percent=xy_percent, y_percent=xy_percent):
+                        dis = np.square(acal[0] - last_following_cal[0]) + np.square(
+                            acal[1] - last_following_cal[1]
+                        )
+                        if dis < min_dis:
+                            min_dis = dis
+                            line_to_follow = line
+                            cal_to_follow = acal
+                            prepare_to_transfer = False
+                if prepare_to_transfer:
+                    line_to_follow, cal_to_follow = get_line_and_cal_to_follow(
+                        lines, cal, last_following_line, last_following_cal
+                    )
+            else:
+                line_to_follow, cal_to_follow = get_line_and_cal_to_follow(
+                    lines, cal, last_following_line, last_following_cal
                 )
+            
+            # update
+            last_following_line, last_following_cal = line_to_follow, cal_to_follow
 
-                print(f"cam_angle: {cam_angle}", end=" ")
-                print(f"cam_err: {cam_err}")
+            # calculate the angle and error
+            cam_angle = cal_to_follow[2] - 90
+            cam_err = (width / 2 - cal_to_follow[4]) * np.sin(
+                np.pi - cal_to_follow[2] * np.pi / 180
+            )
 
-                msg = pack_lora_msg(0, 0, cam_angle, cam_err)
-                # com.write(msg)
+            print(f"cam_angle: {cam_angle}", f"cam_err: {cam_err}")
 
-            elif task == "object_recognition":
-                print("object_recognition")
-                subtask = which_recognition(frame)
+            # send the angle and error to the STM32
+            msg = pack_lora_msg(0, 0, cam_angle, cam_err)
+            com.write(msg)
 
             # Save frame to directory
             save_path = os.path.join(
@@ -160,10 +172,12 @@ def debug():
 
 
 if __name__ == "__main__":
+    dt = datetime.now()
     cfg = {
-        "sample_delta": 1,
-        "output_dir": "/Users/gmh/oasis/code/course/underwater_robot/output",
-        "test_steps": 400,
+        "sample_delta": 0.2,
+        "output_dir": f"/home/rp24/code/underwater_robot/file/debug_output_{dt.strftime('%Y%m%d%H%M%S')}",
+        "test_steps": 1000,
     }
+    os.makedirs(cfg["output_dir"], exist_ok=True)
     main(cfg)
     # debug()

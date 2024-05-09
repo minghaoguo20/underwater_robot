@@ -177,9 +177,7 @@ def get_line_and_cal_to_follow(lines, cal, last_following_line, last_following_c
         line_to_follow = lines[idx_left]
         cal_to_follow = cal[idx_left]
         return line_to_follow, cal_to_follow
-    dis = np.square(cal[:, 0] - last_following_cal[0]) + np.square(
-        cal[:, 1] - last_following_cal[1]
-    )
+    dis = np.square(cal[:, 0] - last_following_cal[0]) + np.square(cal[:, 1] - last_following_cal[1])
     idx_min_dis = np.argmin(dis, axis=0)
     line_to_follow = lines[idx_min_dis]
     cal_to_follow = cal[idx_min_dis]

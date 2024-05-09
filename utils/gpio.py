@@ -30,8 +30,10 @@ def pack_lora_msg(Cam_Sign, Cam_Flag, Cam_Angle, Cam_Err):
     """
     a = np.uint8(Cam_Sign)
     b = np.uint8(Cam_Flag)
-    c = np.float16(Cam_Angle)
-    d = np.float16(Cam_Err)
+    Cam_Angle = Cam_Angle * 65536 / 2 / 180
+    c = np.int16(Cam_Angle)
+    Cam_Err = Cam_Err * 65536 / 2 / 240
+    d = np.int16(Cam_Err)
     # print(f"a: {a}, b: {b}, c: {c}, d: {d}")
 
     cc = c.tobytes()
@@ -46,9 +48,15 @@ def pack_lora_msg(Cam_Sign, Cam_Flag, Cam_Angle, Cam_Err):
         bytes(b"\xFE")
         + a.tobytes()
         + b.tobytes()
-        + c.tobytes()
-        + d.tobytes()
-        + sum_bytes
+        # + c.tobytes()
+        + np.uint8((c.tobytes())[1]).tobytes()
+        + np.uint8((c.tobytes())[0]).tobytes()
+        # + d.tobytes()
+        + np.uint8((d.tobytes())[1]).tobytes()
+        + np.uint8((d.tobytes())[0]).tobytes()
+        # + sum_bytes
+        + np.uint8(sum_bytes[1]).tobytes()
+        + np.uint8(sum_bytes[0]).tobytes()
         + bytes(b"\xFF")
     )
     # print(f"msg: {msg}, len(msg): {len(msg)}")
@@ -59,12 +67,13 @@ def pack_lora_msg(Cam_Sign, Cam_Flag, Cam_Angle, Cam_Err):
 def test_pack_lora_msg():
     Cam_Sign = 1
     Cam_Flag = 1
-    Cam_Angle = 12.3
-    Cam_Err = 0.1
+    Cam_Angle = 0
+    Cam_Err = 0
     msg = pack_lora_msg(Cam_Sign, Cam_Flag, Cam_Angle, Cam_Err)
     print(msg)
     for i in range(len(msg)):
         print(hex(msg[i]), end="\t")
+    print()
 
 
 def test_communication():
@@ -76,7 +85,18 @@ def test_communication():
     com.bytesize = 8
     com.parity = "N"
 
-    msg = pack_lora_msg(Cam_Sign=1, Cam_Flag=1, Cam_Angle=12.3, Cam_Err=0.1)
+    Cam_Sign = 1
+    Cam_Flag = 3
+    Cam_Angle = -56
+    Cam_Err = 20
+
+    msg = pack_lora_msg(
+        Cam_Sign=Cam_Sign, Cam_Flag=Cam_Flag, Cam_Angle=Cam_Angle, Cam_Err=Cam_Err
+    )
+    # print(f"CAM_Sign: {Cam_Sign}, CAM_Flag: {Cam_Flag}, CAM_Angle: {Cam_Angle}, CAM_Err: {Cam_Err}")
+    for m in msg:
+        print(hex(m), end=" ")
+    print()
 
     # com.write(b'underwater robot')
     # com.write(b'\xFE\x01\x04\x00\x00\x00\x00\x00\x05\xFF')
@@ -94,3 +114,4 @@ def test_communication():
 
 if __name__ == "__main__":
     test_communication()
+    # test_pack_lora_msg()

@@ -28,7 +28,7 @@ def main(cfg):
 
     last_following_line = None
     last_following_cal = None
-    trans_lines = False
+    prepare_to_transfer = False
     while True:
         now = datetime.now()
         ret, frame = cap.read()
@@ -52,7 +52,7 @@ def main(cfg):
                 lines, cal = get_lines_and_cal(lines, cal)
 
                 if in_center(last_following_line, x_percent=0.2, y_percent=0.2):
-                    trans_lines = True
+                    prepare_to_transfer = True
 
                     pass
                 line_to_follow, cal_to_follow = get_line_and_cal_to_follow(lines, cal, last_following_line, last_following_cal)

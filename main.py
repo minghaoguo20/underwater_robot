@@ -26,9 +26,14 @@ def main(cfg):
         port="/dev/ttyAMA0", baudrate=9600, stopbits=1, bytesize=8, parity="N"
     )
 
+    last_following_line = None
+    last_following_cal = None
+    trans_lines = False
     while True:
         now = datetime.now()
         ret, frame = cap.read()
+        height, width, _ = frame.shape
+        cv2.imshow('frame', frame)
 
         if now > last + timedelta(seconds=cfg["sample_delta"]):
             last = now
@@ -44,7 +49,13 @@ def main(cfg):
                     continue
                 cal = get_center_and_angle_len(lines)
 
-                line_to_follow, cal_to_follow = get_lines_and_cal(frame, lines, cal)
+                lines, cal = get_lines_and_cal(lines, cal)
+
+                if in_center(last_following_line, x_percent=0.2, y_percent=0.2):
+                    trans_lines = True
+
+                    pass
+                line_to_follow, cal_to_follow = get_line_and_cal_to_follow(lines, cal, last_following_line, last_following_cal)
 
                 cam_angle = cal_to_follow[2] - 90
                 cam_err = (width / 2 - cal_to_follow[4]) * np.sin(
@@ -55,7 +66,7 @@ def main(cfg):
                 print(f"cam_err: {cam_err}")
 
                 msg = pack_lora_msg(0, 0, cam_angle, cam_err)
-                com.write(msg)
+                # com.write(msg)
 
             elif task == "object_recognition":
                 print("object_recognition")
@@ -100,7 +111,7 @@ def debug():
     lines = get_lines(frame, "bgr", lower_rgb, upper_rgb)
     cal = get_center_and_angle_len(lines)
 
-    line_to_follow, cal_to_follow = get_lines_and_cal(frame, lines, cal)
+    line_to_follow, cal_to_follow = get_lines_and_cal(lines, cal)
 
     cam_angle = cal_to_follow[2] - 90
     cam_err = (width / 2 - cal_to_follow[4]) * np.sin(
@@ -151,8 +162,8 @@ def debug():
 if __name__ == "__main__":
     cfg = {
         "sample_delta": 1,
-        "output_dir": "/home/rp24/file/debug_output",
-        "test_steps": 2,
+        "output_dir": "/Users/gmh/oasis/code/course/underwater_robot/output",
+        "test_steps": 400,
     }
-    # main(cfg)
-    debug()
+    main(cfg)
+    # debug()

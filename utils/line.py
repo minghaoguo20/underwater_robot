@@ -92,7 +92,9 @@ def cluster_idealx_alpha(
     """
     idx_clusters = np.zeros((tx_alpha.shape[0]), dtype=int)
     max_index = 0
-    clusters_added = [] # to append ((avg_tx, avg_alpha, idx, n, data[(tx, alpha), (), ...]))
+    clusters_added = (
+        []
+    )  # to append ((avg_tx, avg_alpha, idx, n, data[(tx, alpha), (), ...]))
     for idx in range(tx_alpha.shape[0]):
         flag_find_cluster = False
         tx, alpha = tx_alpha[idx]
@@ -141,9 +143,11 @@ def cluster_idealx_alpha(
     return idx_clusters, idx_used, idx_num
 
 
-def get_lines_and_cal(frame, lines, cal):
+def get_lines_and_cal(lines, cal):
     idx_clusters, idx_used, idx_num = cluster_idealx_alpha(cal[:, [4, 2]], min_lines=5)
     idx_used = np.delete(idx_used, np.where(idx_used == 0))
+    if len(idx_used) == 0:
+        return None, None
 
     lines_to_use = []
     cal_to_use = []
@@ -158,15 +162,41 @@ def get_lines_and_cal(frame, lines, cal):
     cal = np.stack(cal_to_use, axis=0)
     # print(f"lines: {lines}")
     # print(f"cal: {cal}")
+    return lines, cal
 
-    # find the most left line
-    idx_left = np.argmin(cal[:, 0], axis=0)
-    line_to_follow = lines[idx_left]
-    cal_to_follow = cal[idx_left]
-    # print(f"line_to_follow: {line_to_follow}")
-    # print(f"cal_to_follow: {cal_to_follow}")
 
+def get_line_and_cal_to_follow(lines, cal, last_following_line, last_following_cal):
+    # # find the most left line
+    # idx_left = np.argmin(cal[:, 0], axis=0)
+    # line_to_follow = lines[idx_left]
+    # cal_to_follow = cal[idx_left]
+    # # print(f"line_to_follow: {line_to_follow}")
+    # # print(f"cal_to_follow: {cal_to_follow}")
+    if last_following_line is None:
+        idx_left = np.argmin(cal[:, 0], axis=0)
+        line_to_follow = lines[idx_left]
+        cal_to_follow = cal[idx_left]
+        return line_to_follow, cal_to_follow
+    dis = np.square(cal[:, 0] - last_following_cal[0]) + np.square(
+        cal[:, 1] - last_following_cal[1]
+    )
+    idx_min_dis = np.argmin(dis, axis=0)
+    line_to_follow = lines[idx_min_dis]
+    cal_to_follow = cal[idx_min_dis]
     return line_to_follow, cal_to_follow
+
+
+def in_center(line, w=600, h=400, x_percent=0.3, y_percent=0.3):
+    x1, y1, x2, y2 = line
+    x_min = w * (1 - x_percent) / 2
+    x_max = w * (1 + x_percent) / 2
+    y_min = h * (1 - y_percent) / 2
+    y_max = h * (1 + y_percent) / 2
+    if x1 > x_min and x1 < x_max and y1 > y_min and y1 < y_max:
+        return True, (x1, y1)
+    if x2 > x_min and x2 < x_max and y2 > y_min and y2 < y_max:
+        return True, (x2, y2)
+    return False, None
 
 
 def cluster(data, n_clusters=2):

@@ -21,6 +21,8 @@ def main(cfg):
     last_following_cal = None
     prepare_to_transfer = False
     figure_recg = False
+    figure_task = np.zeros(6)
+    next_point = 1
     while True:
         now = datetime.now()
         ret, frame = cap.read()
@@ -43,8 +45,13 @@ def main(cfg):
             if in_center(last_following_line, x_percent=xy_percent, y_percent=xy_percent):
                 prepare_to_transfer = True
 
+            line_nearest, cal_nearesr, idx_min_dis = get_line_and_cal_to_follow(
+                lines, cal, last_following_line, last_following_cal
+            )
             if prepare_to_transfer:
                 min_dis = 100000
+                del lines[idx_min_dis]
+                del cal[idx_min_dis]
                 for line, acal in zip(lines, cal):
                     if in_center(line, x_percent=xy_percent, y_percent=xy_percent):
                         dis = np.square(acal[0] - last_following_cal[0]) + np.square(
@@ -55,19 +62,16 @@ def main(cfg):
                             line_to_follow = line
                             cal_to_follow = acal
                             prepare_to_transfer = False
+                        if figure_task[next_point] == 0:
+                            res, confidence = recognize_figure(frame)
+                            if confidence > 0.5:
+                                figure_recg = True
+                                figure_task[next_point] == 1
+                                next_point += 1
                 if prepare_to_transfer:
-                    line_to_follow, cal_to_follow = get_line_and_cal_to_follow(
-                        lines, cal, last_following_line, last_following_cal
-                    )
-                # try to recgonize the figure
-                # if prepare_to_transfer is True, allow failure and try again next iteration
-                figure, confidence = recognize_figure(frame)
-                if confidence > 0.5:
-                    figure_recg = True
+                    line_to_follow, cal_to_follow = line_nearest, cal_nearesr                
             else:
-                line_to_follow, cal_to_follow = get_line_and_cal_to_follow(
-                    lines, cal, last_following_line, last_following_cal
-                )
+                line_to_follow, cal_to_follow = line_nearest, cal_nearesr
             
             # update
             last_following_line, last_following_cal = line_to_follow, cal_to_follow
@@ -78,10 +82,11 @@ def main(cfg):
                 np.pi - cal_to_follow[2] * np.pi / 180
             )
 
-            print(f"cam_angle: {cam_angle}", f"cam_err: {cam_err}")
+            # print(f"cam_angle: {cam_angle}", f"cam_err: {cam_err}")
 
             # send the angle and error to the STM32
-            if figure_recg:
+            if figure_recg and figure_task[next_point] == 0:
+                # senf msg of figure recg
                 pass
             else:
                 msg = pack_lora_msg(0, 0, cam_angle, cam_err)

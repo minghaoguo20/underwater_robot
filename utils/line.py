@@ -181,7 +181,7 @@ def get_line_and_cal_to_follow(lines, cal, last_following_line, last_following_c
     idx_min_dis = np.argmin(dis, axis=0)
     line_to_follow = lines[idx_min_dis]
     cal_to_follow = cal[idx_min_dis]
-    return line_to_follow, cal_to_follow
+    return line_to_follow, cal_to_follow, idx_min_dis
 
 
 def in_center(line, w=600, h=400, x_percent=0.3, y_percent=0.3):

@@ -5,6 +5,7 @@ from datetime import timedelta
 
 from utils.line import *
 from utils.gpio import *
+from utils.img import *
 
 
 def main(cfg):
@@ -14,13 +15,12 @@ def main(cfg):
     lower_rgb = (30, 20, 0)
     upper_rgb = (80, 80, 80)
 
-    com = serial.Serial(
-        port="/dev/ttyAMA0", baudrate=9600, stopbits=1, bytesize=8, parity="N"
-    )
+    com = serial.Serial(port="/dev/ttyAMA0", baudrate=9600, stopbits=1, bytesize=8, parity="N")
 
     last_following_line = None
     last_following_cal = None
     prepare_to_transfer = False
+    figure_recg = False
     while True:
         now = datetime.now()
         ret, frame = cap.read()
@@ -38,11 +38,6 @@ def main(cfg):
             lines, cal = get_lines_and_cal(lines, cal)
             if lines is None:
                 continue
-
-            # # for the first iteration
-            # if line_to_follow is None:
-            #     last_following_line, last_following_cal = lines[0], cal[0]
-            #     # line_to_follow, cal_to_follow = lines[0], cal[0]
 
             xy_percent = 0.2
             if in_center(last_following_line, x_percent=xy_percent, y_percent=xy_percent):
@@ -64,6 +59,11 @@ def main(cfg):
                     line_to_follow, cal_to_follow = get_line_and_cal_to_follow(
                         lines, cal, last_following_line, last_following_cal
                     )
+                # try to recgonize the figure
+                # if prepare_to_transfer is True, allow failure and try again next iteration
+                figure, confidence = recognize_figure(frame)
+                if confidence > 0.5:
+                    figure_recg = True
             else:
                 line_to_follow, cal_to_follow = get_line_and_cal_to_follow(
                     lines, cal, last_following_line, last_following_cal
@@ -81,14 +81,17 @@ def main(cfg):
             print(f"cam_angle: {cam_angle}", f"cam_err: {cam_err}")
 
             # send the angle and error to the STM32
-            msg = pack_lora_msg(0, 0, cam_angle, cam_err)
+            if figure_recg:
+                pass
+            else:
+                msg = pack_lora_msg(0, 0, cam_angle, cam_err)
             com.write(msg)
 
             # Save frame to directory
             save_path = os.path.join(
                 cfg["output_dir"], f"frames_saved_{now.strftime('%Y%m%d%H%M%S')}.jpg"
             )
-            print(save_path)
+            # print(save_path)
             cv2.imwrite(save_path, frame)
 
             if cfg["test_steps"] == 0:

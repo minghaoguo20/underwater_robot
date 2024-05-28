@@ -65,10 +65,10 @@ def pack_lora_msg(Cam_Sign, Cam_Flag, Cam_Angle, Cam_Err):
 
 
 def test_pack_lora_msg():
-    Cam_Sign = 1
-    Cam_Flag = 1
-    Cam_Angle = 0
-    Cam_Err = 0
+    Cam_Sign = 3
+    Cam_Flag = 4
+    Cam_Angle = 55.5
+    Cam_Err = 66.6
     msg = pack_lora_msg(Cam_Sign, Cam_Flag, Cam_Angle, Cam_Err)
     print(msg)
     for i in range(len(msg)):
@@ -85,10 +85,10 @@ def test_communication():
     com.bytesize = 8
     com.parity = "N"
 
-    Cam_Sign = 1
-    Cam_Flag = 3
-    Cam_Angle = -56
-    Cam_Err = 20
+    Cam_Sign = 2
+    Cam_Flag = 19
+    Cam_Angle = -95.5
+    Cam_Err = -16.6
 
     msg = pack_lora_msg(
         Cam_Sign=Cam_Sign, Cam_Flag=Cam_Flag, Cam_Angle=Cam_Angle, Cam_Err=Cam_Err

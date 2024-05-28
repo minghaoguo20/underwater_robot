@@ -7,9 +7,32 @@ from utils.line import *
 from utils.gpio import *
 from utils.img import *
 
+import time
 
 def main(cfg):
-    cap = cv2.VideoCapture(0)
+
+    # frame_is_none = False
+    # trial = 10
+    # while frame_is_none:
+    #     cap = cv2.VideoCapture(0)
+    #     ret, frame = cap.read()
+    #     if frame is not None:
+    #         frame_is_none = True
+    #         cap.release()
+        
+    #     trial -= 1
+    #     if trial < 0:
+    #         break
+
+    ret = False
+    try_time = 10
+    while not ret:
+        cap = cv2.VideoCapture(0)
+        ret, _ = cap.read()
+        try_time -= 1
+        if try_time < 0:
+            break
+
     last = datetime.now() - timedelta(seconds=100)
 
     lower_rgb = (30, 20, 0)
@@ -19,89 +42,119 @@ def main(cfg):
 
     last_following_line = None
     last_following_cal = None
-    prepare_to_transfer = False
+    prepare_to_transfer = False # whether to transfer to the next line
     figure_recg = False
     figure_task = np.zeros(6)
-    next_point = 1
+    next_point = 0
+    denote_path = os.path.join(
+        cfg["output_dir"], "denote.txt"
+    )
     while True:
         now = datetime.now()
         ret, frame = cap.read()
         height, width, _ = frame.shape
         # cv2.imshow('frame', frame)
 
-        if now > last + timedelta(seconds=cfg["sample_delta"]):
-            last = now
+        task = ""
 
-            lines = get_lines(frame, "bgr", lower_rgb, upper_rgb)
-            if lines is None:
-                continue
-            cal = get_center_and_angle_len(lines)
+        if now - last < timedelta(seconds=cfg["sample_delta"]):
+            continue
+        last = now
 
-            lines, cal = get_lines_and_cal(lines, cal)
-            if lines is None:
-                continue
+        # get all lines
+        lines = get_lines(frame, "bgr", lower_rgb, upper_rgb)
+        if lines is None:
+            continue
+        cal = get_center_and_angle_len(lines)
 
-            xy_percent = 0.2
-            if in_center(last_following_line, x_percent=xy_percent, y_percent=xy_percent):
-                prepare_to_transfer = True
+        # get all clear and single lines
+        lines, cal = get_lines_and_cal(lines, cal)
+        if lines is None:
+            continue
+        if last_following_line is None:
+            last_following_line, last_following_cal = get_left_line_and_cal(lines, cal)
 
-            line_nearest, cal_nearesr, idx_min_dis = get_line_and_cal_to_follow(
-                lines, cal, last_following_line, last_following_cal
-            )
-            if prepare_to_transfer:
-                min_dis = 100000
-                del lines[idx_min_dis]
-                del cal[idx_min_dis]
-                for line, acal in zip(lines, cal):
-                    if in_center(line, x_percent=xy_percent, y_percent=xy_percent):
-                        dis = np.square(acal[0] - last_following_cal[0]) + np.square(
-                            acal[1] - last_following_cal[1]
-                        )
-                        if dis < min_dis:
-                            min_dis = dis
-                            line_to_follow = line
-                            cal_to_follow = acal
-                            prepare_to_transfer = False
-                        if figure_task[next_point] == 0:
-                            res, confidence = recognize_figure(frame)
-                            if confidence > 0.5:
-                                figure_recg = True
-                                figure_task[next_point] == 1
-                                next_point += 1
-                if prepare_to_transfer:
-                    line_to_follow, cal_to_follow = line_nearest, cal_nearesr                
+        xy_percent = cfg["xy_percent"]
+        if in_center(last_following_line, x_percent=xy_percent, y_percent=xy_percent)[0]:
+            prepare_to_transfer = True
+        prepare_to_transfer = False # DELETE!!!
+
+        # get the nearest line
+        line_nearest, cal_nearesr, idx_min_dis = get_line_and_cal_to_follow(
+            lines, cal, last_following_line, last_following_cal
+        )
+
+        # by default, we follow the nearest line. we process other cases later
+        line_to_follow, cal_to_follow = line_nearest, cal_nearesr
+
+        # case: need to transfer from one line to another. if cannot find proper line, follow the line got before
+        if prepare_to_transfer:
+            min_dis = 100000
+            lines = np.delete(lines, idx_min_dis, axis=0)
+            cal = np.delete(cal, idx_min_dis, axis=0)
+            finded_new_line = False
+            for line, acal in zip(lines, cal):
+                if in_center(line, x_percent=xy_percent, y_percent=xy_percent)[0]:
+                    dis = np.square(acal[0] - last_following_cal[0]) + np.square(
+                        acal[1] - last_following_cal[1]
+                    )
+                    if dis < min_dis:
+                        min_dis = dis
+                        line_to_follow = line
+                        cal_to_follow = acal
+                        prepare_to_transfer = False
+                        finded_new_line = True
+                    if figure_task[next_point] == 0:
+                        res, confidence = recognize_figure(frame)
+                        if confidence > 0.5:
+                            figure_recg = True
+                            figure_task[next_point] = 1
+            if finded_new_line:
+                next_point += 1
             else:
-                line_to_follow, cal_to_follow = line_nearest, cal_nearesr
-            
-            # update
-            last_following_line, last_following_cal = line_to_follow, cal_to_follow
+                task = "tracking"
 
-            # calculate the angle and error
-            cam_angle = cal_to_follow[2] - 90
-            cam_err = (width / 2 - cal_to_follow[4]) * np.sin(
-                np.pi - cal_to_follow[2] * np.pi / 180
-            )
+        # update
+        last_following_line, last_following_cal = line_to_follow, cal_to_follow
 
-            # print(f"cam_angle: {cam_angle}", f"cam_err: {cam_err}")
+        # calculate the angle and error
+        cam_angle = cal_to_follow[2] - 90
+        cam_err = (width / 2 - cal_to_follow[4]) * np.sin(
+            np.pi - cal_to_follow[2] * np.pi / 180
+        )
 
-            # send the angle and error to the STM32
-            if figure_recg and figure_task[next_point] == 0:
-                # senf msg of figure recg
-                pass
-            else:
-                msg = pack_lora_msg(0, 0, cam_angle, cam_err)
-            com.write(msg)
+        # print(f"cam_angle: {cam_angle}", f"cam_err: {cam_err}")
 
-            # Save frame to directory
-            save_path = os.path.join(
-                cfg["output_dir"], f"frames_saved_{now.strftime('%Y%m%d%H%M%S')}.jpg"
-            )
-            # print(save_path)
-            cv2.imwrite(save_path, frame)
+        # send the angle and error to the STM32
+        if figure_recg and figure_task[next_point] == 0:
+            # senf msg of figure recg
+            pass
+        else:
+            msg = pack_lora_msg(0, 0, cam_angle, cam_err)
+        com.write(msg)
 
-            if cfg["test_steps"] == 0:
-                break
-            cfg["test_steps"] -= 1
+        msg = pack_lora_msg(3, 0, cam_angle, cam_err)
+        com.write(msg)
+
+        # Save frame to directory
+        frame_name = f"frames_saved_{now.strftime('%Y%m%d%H%M%S')}.jpg"
+        save_path = os.path.join(
+            cfg["output_dir"], frame_name
+        )
+        # print(save_path)
+        cv2.imwrite(save_path, frame)
+
+        f = open(denote_path, 'a+')
+        f.write(now.strftime('%Y%m%d-%H%M%S') + '\n')
+        f.write(f"cam_angle: {cam_angle}, cam_err: {cam_err}\n")
+        f.write(lines)
+        f.write(cal)
+        f.write("\n\n")
+        f.close()
+
+        if cfg["test_steps"] == 0:
+            break
+        cfg["test_steps"] -= 1
 
         # if cv2.waitKey(1) & 0xFF == ord("q"):
         #     break
@@ -180,11 +233,13 @@ def debug():
 
 
 if __name__ == "__main__":
+    time.sleep(5)
     dt = datetime.now()
     cfg = {
-        "sample_delta": 0.2,
-        "output_dir": f"/home/rp24/code/underwater_robot/file/debug_output_{dt.strftime('%Y%m%d%H%M%S')}",
+        "sample_delta": 0.01,
+        "output_dir": f"/home/rp24/code/underwater_robot/file/debug_output_{dt.strftime('%Y%m%d_%H%M%S')}",
         "test_steps": 1000,
+        "xy_percent": 0.5,
     }
     os.makedirs(cfg["output_dir"], exist_ok=True)
     main(cfg)

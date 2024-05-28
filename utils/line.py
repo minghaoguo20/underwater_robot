@@ -184,7 +184,15 @@ def get_line_and_cal_to_follow(lines, cal, last_following_line, last_following_c
     return line_to_follow, cal_to_follow, idx_min_dis
 
 
+def get_left_line_and_cal(lines, cal):
+    # find the most left line
+    idx_left = np.argmin(cal[:, 0], axis=0)
+    return lines[idx_left], cal[idx_left]
+
+
 def in_center(line, w=600, h=400, x_percent=0.3, y_percent=0.3):
+    if line is None:
+        return False, None
     x1, y1, x2, y2 = line
     x_min = w * (1 - x_percent) / 2
     x_max = w * (1 + x_percent) / 2

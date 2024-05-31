@@ -52,5 +52,5 @@ if __name__ == "__main__":
     parser.add_argument('--error', '-e', type=float, default=0, required=False, help="error")
     parser.add_argument('--receive', '-r', type=bool, default=False, required=False, help="receive")
     args = parser.parse_args()
-
+    
     test_communication(args.sign, args.flag, args.angle, args.error, args.receive)

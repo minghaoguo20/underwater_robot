@@ -6,6 +6,7 @@ from datetime import timedelta
 from utils.line import *
 from utils.gpio import *
 from utils.img import *
+from utils.denote import *
 
 import time
 
@@ -23,6 +24,8 @@ def main(cfg):
     #     trial -= 1
     #     if trial < 0:
     #         break
+
+    flag_msg_number = 0
 
     ret = False
     try_time = 10
@@ -64,12 +67,16 @@ def main(cfg):
         # get all lines
         lines = get_lines(frame, "bgr", lower_rgb, upper_rgb)
         if lines is None:
+            denote_msg(denote_path, flag_msg_number, now, None, None, lines, None)
+            flag_msg_number += 1
             continue
         cal = get_center_and_angle_len(lines)
 
         # get all clear and single lines
         lines, cal = get_lines_and_cal(lines, cal)
         if lines is None:
+            denote_msg(denote_path, flag_msg_number, now, None, None, lines, None)
+            flag_msg_number += 1
             continue
         if last_following_line is None:
             last_following_line, last_following_cal = get_left_line_and_cal(lines, cal)
@@ -122,6 +129,7 @@ def main(cfg):
         cam_err = (width / 2 - cal_to_follow[4]) * np.sin(
             np.pi - cal_to_follow[2] * np.pi / 180
         )
+        cam_err = cam_err / 320 * 200
 
         # print(f"cam_angle: {cam_angle}", f"cam_err: {cam_err}")
 
@@ -133,7 +141,7 @@ def main(cfg):
             msg = pack_lora_msg(0, 0, cam_angle, cam_err)
         com.write(msg)
 
-        msg = pack_lora_msg(3, 0, cam_angle, cam_err)
+        msg = pack_lora_msg(3, flag_msg_number, cam_angle, cam_err)
         com.write(msg)
 
         # Save frame to directory
@@ -144,13 +152,8 @@ def main(cfg):
         # print(save_path)
         cv2.imwrite(save_path, frame)
 
-        f = open(denote_path, 'a+')
-        f.write(now.strftime('%Y%m%d-%H%M%S') + '\n')
-        f.write(f"cam_angle: {cam_angle}, cam_err: {cam_err}\n")
-        f.write(lines)
-        f.write(cal)
-        f.write("\n\n")
-        f.close()
+        denote_msg(denote_path, flag_msg_number, now, cam_angle, cam_err, lines, cal)
+        flag_msg_number += 1
 
         if cfg["test_steps"] == 0:
             break

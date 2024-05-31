@@ -86,9 +86,9 @@ def test_communication():
     com.parity = "N"
 
     Cam_Sign = 2
-    Cam_Flag = 19
-    Cam_Angle = -95.5
-    Cam_Err = -16.6
+    Cam_Flag = 0
+    Cam_Angle = 0
+    Cam_Err = 0
 
     msg = pack_lora_msg(
         Cam_Sign=Cam_Sign, Cam_Flag=Cam_Flag, Cam_Angle=Cam_Angle, Cam_Err=Cam_Err
@@ -102,14 +102,14 @@ def test_communication():
     # com.write(b'\xFE\x01\x04\x00\x00\x00\x00\x00\x05\xFF')
     com.write(msg)
 
-    while True:
-        count = com.inWaiting()
-        if count != 0:
-            recv = com.read(count)
-            print(recv)  # 发回数据
-            com.write(recv)
-            com.flushInput()  # 清空接收缓冲区
-            time.sleep(0.1)
+    # while True:
+    #     count = com.inWaiting()
+    #     if count != 0:
+    #         recv = com.read(count)
+    #         print(recv)  # 发回数据
+    #         com.write(recv)
+    #         com.flushInput()  # 清空接收缓冲区
+    #         time.sleep(0.1)
 
 
 if __name__ == "__main__":

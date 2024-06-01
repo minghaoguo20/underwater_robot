@@ -46,7 +46,7 @@ def test_communication(Cam_Sign = 0, Cam_Flag = 0, Cam_Angle = 0, Cam_Err = 0, r
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='argparse testing')
-    parser.add_argument('--sign', '-s', type=int, default=0, required=False, help="sign")
+    parser.add_argument('--sign', '-s', type=int, default=3, required=False, help="sign")
     parser.add_argument('--flag', '-f', type=int, default=0, required=False, help='flag')
     parser.add_argument('--angle', '-a', type=float, default=0, required=False, help="angle")
     parser.add_argument('--error', '-e', type=float, default=0, required=False, help="error")

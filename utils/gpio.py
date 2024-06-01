@@ -86,7 +86,7 @@ def test_communication():
     com.parity = "N"
 
     Cam_Sign = 2
-    Cam_Flag = 0
+    Cam_Flag = 2
     Cam_Angle = 0
     Cam_Err = 0
 

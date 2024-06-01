@@ -26,6 +26,7 @@ def main(cfg):
     #         break
 
     flag_msg_number = 0
+    com = serial.Serial(port="/dev/ttyAMA0", baudrate=9600, stopbits=1, bytesize=8, parity="N")
 
     ret = False
     try_time = 10
@@ -35,13 +36,20 @@ def main(cfg):
         try_time -= 1
         if try_time < 0:
             break
+    if ret:
+        msg = pack_lora_msg(4, 1, 0, 0)
+        com.write(msg)
+        print(f"msg 4 1 0 0")
+    else:
+        msg = pack_lora_msg(4, 2, 0, 0)
+        com.write(msg)
+        print(f"msg 4 2 0 0")
+        exit()
 
     last = datetime.now() - timedelta(seconds=100)
 
     lower_rgb = (30, 20, 0)
     upper_rgb = (80, 80, 80)
-
-    com = serial.Serial(port="/dev/ttyAMA0", baudrate=9600, stopbits=1, bytesize=8, parity="N")
 
     last_following_line = None
     last_following_cal = None
@@ -67,6 +75,11 @@ def main(cfg):
         # get all lines
         lines = get_lines(frame, "bgr", lower_rgb, upper_rgb)
         if lines is None:
+            # Save frame to directory
+            frame_name = f"frames_saved_{now.strftime('%Y%m%d%H%M%S')}.jpg"
+            save_path = os.path.join(cfg["output_dir"], frame_name)
+            cv2.imwrite(save_path, frame)
+
             denote_msg(denote_path, flag_msg_number, now, None, None, lines, None)
             flag_msg_number += 1
             continue
@@ -126,7 +139,7 @@ def main(cfg):
 
         # calculate the angle and error
         cam_angle = cal_to_follow[2] - 90
-        cam_err = (width / 2 - cal_to_follow[4]) * np.sin(
+        cam_err = (al_to_follow[4] - width / 2) * np.sin(
             np.pi - cal_to_follow[2] * np.pi / 180
         )
         cam_err = cam_err / 320 * 200
@@ -146,11 +159,23 @@ def main(cfg):
 
         # Save frame to directory
         frame_name = f"frames_saved_{now.strftime('%Y%m%d%H%M%S')}.jpg"
-        save_path = os.path.join(
-            cfg["output_dir"], frame_name
-        )
+        save_path = os.path.join(cfg["output_dir"], frame_name)
         # print(save_path)
         cv2.imwrite(save_path, frame)
+
+        frame_line = frame.copy()
+        # all lines
+        for this_line in lines:
+            cv2.line(frame_line, (int(this_line[0]), int(this_line[1])), (int(this_line[2]), int(this_line[3]),), (255, 0, 0), 3)
+        # line to follow
+        cv2.line(frame_line, (int(line_to_follow[0]), int(line_to_follow[1])), (int(line_to_follow[2]), int(line_to_follow[3]),), (0, 255, 0), 3)
+        # text
+        text = f"angle: {cam_angle:.2f}, err: {cam_err:.2f}"
+        cv2.putText(frame_line, text, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (192, 57, 43), 1, cv2.LINE_AA)
+
+        frame_name = f"frames_saved_{now.strftime('%Y%m%d%H%M%S')}.jpg"
+        save_path = os.path.join(cfg["output_dir"], frame_name)
+        cv2.imwrite(save_path, frame_line)
 
         denote_msg(denote_path, flag_msg_number, now, cam_angle, cam_err, lines, cal)
         flag_msg_number += 1

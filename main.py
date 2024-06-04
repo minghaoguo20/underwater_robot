@@ -30,12 +30,31 @@ def main(cfg):
 
     ret = False
     try_time = 10
-    while not ret:
-        cap = cv2.VideoCapture(0)
-        ret, _ = cap.read()
-        try_time -= 1
-        if try_time < 0:
+    find_camera = False
+    for camera_id in range(2):
+        for i in range(try_time):
+            cap = cv2.VideoCapture(camera_id)
+            ret, _ = cap.read()
+            if ret:
+                find_camera = True
+                break
+        if find_camera:
             break
+    # cap.release()
+
+    # ret = False
+    # try_time = 10
+    # find_camera = False
+    # for camera_id in range(2):
+    #     for i in range(try_time):
+    #         cap = cv2.VideoCapture(camera_id)
+    #         ret, _ = cap.read()
+    #         if ret:
+    #             find_camera = True
+    #             break
+    #     if find_camera:
+    #         break
+
     if ret:
         msg = pack_lora_msg(4, 1, 0, 0)
         com.write(msg)
@@ -44,6 +63,10 @@ def main(cfg):
         msg = pack_lora_msg(4, 2, 0, 0)
         com.write(msg)
         print(f"msg 4 2 0 0")
+        denote_path = os.path.join(
+            cfg["output_dir"], "denote_no_camera.txt"
+        )
+        denote_msg(denote_path, flag_msg_number, datetime.now(), None, None, None, None)
         exit()
 
     last = datetime.now() - timedelta(seconds=100)
@@ -86,7 +109,7 @@ def main(cfg):
         cal = get_center_and_angle_len(lines)
 
         # get all clear and single lines
-        lines, cal = get_lines_and_cal(lines, cal)
+        lines, cal = get_lines_and_cal(lines, cal, cfg["threshold"]["recg_min_line_num"])
         if lines is None:
             denote_msg(denote_path, flag_msg_number, now, None, None, lines, None)
             flag_msg_number += 1
@@ -134,24 +157,46 @@ def main(cfg):
             else:
                 task = "tracking"
 
+        # prolong the line to follow
+        line_to_follow_prolonged = prolong_line(line_to_follow, height=height, width=width)
+        cal_to_follow_prolonged = get_center_and_angle_len(np.array([line_to_follow]))[0]
+
         # update
         last_following_line, last_following_cal = line_to_follow, cal_to_follow
 
+        y_min = min(line_to_follow[1], line_to_follow[3])
+        down_part = True if y_min / height > 0.66 else False
+
         # calculate the angle and error
-        cam_angle = cal_to_follow[2] - 90
-        cam_err = (al_to_follow[4] - width / 2) * np.sin(
-            np.pi - cal_to_follow[2] * np.pi / 180
+        cam_angle = cal_to_follow_prolonged[2] - 90
+        if down_part:
+            cam_angle = confine_angle(cam_angle, 0)
+
+        cam_err = (cal_to_follow_prolonged[4] - width / 2) * np.sin(
+            np.pi - cal_to_follow_prolonged[2] * np.pi / 180
         )
         cam_err = cam_err / 320 * 200
 
+        if abs(cam_angle) < cfg["threshold"]["angle"]:
+            cam_angle = 0
+        if abs(cam_err) < cfg["threshold"]["error"]:
+            cam_err = 0
+
         # print(f"cam_angle: {cam_angle}", f"cam_err: {cam_err}")
 
+        angle_ratio = cfg["angle_ratio"]
         # send the angle and error to the STM32
         if figure_recg and figure_task[next_point] == 0:
             # senf msg of figure recg
             pass
         else:
-            msg = pack_lora_msg(0, 0, cam_angle, cam_err)
+            # paw_right = cam_angle*angle_ratio + cam_err*(1-angle_ratio)
+            paw = cam_angle
+            side = cam_err
+            
+            speed = cal_speed(cam_angle, cam_err)
+            speed = np.uint8(speed)
+            msg = pack_lora_msg(0, speed, paw, side)
         com.write(msg)
 
         msg = pack_lora_msg(3, flag_msg_number, cam_angle, cam_err)
@@ -170,8 +215,13 @@ def main(cfg):
         # line to follow
         cv2.line(frame_line, (int(line_to_follow[0]), int(line_to_follow[1])), (int(line_to_follow[2]), int(line_to_follow[3]),), (0, 255, 0), 3)
         # text
-        text = f"angle: {cam_angle:.2f}, err: {cam_err:.2f}"
+        text = f"angle/paw: {cam_angle:.2f}, err/side: {cam_err:.2f}"
         cv2.putText(frame_line, text, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (192, 57, 43), 1, cv2.LINE_AA)
+        text = f"speed: {speed}"
+        cv2.putText(frame_line, text, (50, 100), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (192, 57, 43), 1, cv2.LINE_AA)
+        text = now.strftime('%Y-%m-%d %H:%M:%S')
+        cv2.putText(frame_line, text, (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (192, 57, 43), 1, cv2.LINE_AA)
+
 
         frame_name = f"frames_saved_{now.strftime('%Y%m%d%H%M%S')}.jpg"
         save_path = os.path.join(cfg["output_dir"], frame_name)
@@ -212,7 +262,7 @@ def debug():
     lines = get_lines(frame, "bgr", lower_rgb, upper_rgb)
     cal = get_center_and_angle_len(lines)
 
-    line_to_follow, cal_to_follow = get_lines_and_cal(lines, cal)
+    line_to_follow, cal_to_follow = get_lines_and_cal(lines, cal, cfg["threshold"]["recg_min_line_num"])
 
     cam_angle = cal_to_follow[2] - 90
     cam_err = (width / 2 - cal_to_follow[4]) * np.sin(
@@ -267,8 +317,21 @@ if __name__ == "__main__":
         "sample_delta": 0.01,
         "output_dir": f"/home/rp24/code/underwater_robot/file/debug_output_{dt.strftime('%Y%m%d_%H%M%S')}",
         "test_steps": 1000,
-        "xy_percent": 0.5,
+        "xy_percent": 0.9,
+        "threshold": {
+            "error": 50,
+            "angle": 5,
+            "recg_min_line_num": 2
+        },
+        "angle_ratio": 0.6,
     }
-    os.makedirs(cfg["output_dir"], exist_ok=True)
+    output_dir = cfg["output_dir"]
+    count = 1
+    while os.path.exists(output_dir):
+        output_dir = f"{cfg['output_dir']}_{count}"
+        count += 1
+    os.makedirs(output_dir)
+    cfg["output_dir"] = output_dir
     main(cfg)
     # debug()
+    # realtime()

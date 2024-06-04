@@ -80,9 +80,7 @@ def filter_lines(lines, center_and_angle, filter="length", threshold=100):
         return np.where(center_and_angle[:, 3] > threshold)[0]
 
 
-def cluster_idealx_alpha(
-    tx_alpha, w=600, h=400, tx_threshold=30, alpha_threshold=5, min_lines=5
-):
+def cluster_idealx_alpha(tx_alpha, w=600, h=400, tx_threshold=30, alpha_threshold=5, min_lines=5):
     """
     cluster the lines based on the idealx and alpha with threshold
     input: numpy array (index, data)
@@ -143,8 +141,8 @@ def cluster_idealx_alpha(
     return idx_clusters, idx_used, idx_num
 
 
-def get_lines_and_cal(lines, cal):
-    idx_clusters, idx_used, idx_num = cluster_idealx_alpha(cal[:, [4, 2]], min_lines=5)
+def get_lines_and_cal(lines, cal, min_lines=2):
+    idx_clusters, idx_used, idx_num = cluster_idealx_alpha(cal[:, [4, 2]], min_lines=min_lines)
     idx_used = np.delete(idx_used, np.where(idx_used == 0))
     if len(idx_used) == 0:
         return None, None
@@ -236,3 +234,84 @@ def process_lines(lines, center_and_angle):
 #         if len(self.todo) == 0:
 #             return False
 #         self.done.append(self.todo.pop(0))
+
+
+def prolong_line(line, width=600, height=400):
+    """
+    prolong the line to the boundary of the image in bi-direction
+    """
+    x1, y1, x2, y2 = line
+    if x1 == x2:
+        return line
+    if y1 == y2:
+        return line
+    k = (y2 - y1) / (x2 - x1)
+    b = y1 - k * x1
+    x1_new = 0
+    y1_new = b
+    x2_new = width
+    y2_new = k * x2_new + b
+    if y1_new < 0:
+        y1_new = 0
+        x1_new = -b / k
+    if y1_new > height:
+        y1_new = height
+        x1_new = (height - b) / k
+    if y2_new < 0:
+        y2_new = 0
+        x2_new = -b / k
+    if y2_new > height:
+        y2_new = height
+        x2_new = (height - b) / k
+    return np.array([x1_new, y1_new, x2_new, y2_new])
+
+
+def confine_angle(angle, desired_min, angle_min=-90, angle_range=180):
+    """
+    confine the angle to the range of [angle_min, angle_min + range]
+    """
+    print(f"{angle}", end="")
+    while angle < desired_min:
+        angle += angle_range
+        print(f" -> {angle}", end="")
+    while angle >= desired_min + angle_range:
+        angle -= angle_range
+        print(f" -> {angle}", end="")
+    return angle
+
+
+def linear_interpolation(x0, y0, x1, y1, x):
+    """
+    linear interpolation
+    """
+    return y0 + (y1 - y0) / (x1 - x0) * (x - x0)
+
+    
+
+def cal_speed(angle, cam_err, angle_threshold=30, speed_min=5, speed_max=15):
+    speed = 0
+    if np.abs(cam_err) > 100:
+        speed = 0
+    elif np.abs(cam_err) > 50:
+        speed = linear_interpolation(50, 5, 100, 0, np.abs(angle))
+    else:
+        speed = linear_interpolation(50, 5, 0, 15, np.abs(angle))
+
+    speed_ratio = 0
+    if np.abs(angle) > 45:
+        speed_ratio = 0
+    elif np.abs(angle) > 20:
+        speed_ratio = linear_interpolation(20, 0.7, 45, 0, np.abs(angle))
+    else:
+        speed_ratio = linear_interpolation(20, 0.7, 0, 1, np.abs(angle))
+    speed = speed * speed_ratio
+    return speed
+
+
+if __name__ == "__main__":
+    angle = 170
+    angle_min = -90
+    angle_range = 180
+    desired_min = 0
+    new_angle = confine_angle(angle, desired_min, angle_min, angle_range)
+    # print(new_angle)

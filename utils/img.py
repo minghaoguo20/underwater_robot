@@ -1,3 +1,6 @@
+import os,sys
+sys.path.append("/home/rp24/.local/lib/python3.9/site-packages")
+
 import cv2
 from matplotlib import pyplot as plt
 import numpy as np
@@ -17,25 +20,19 @@ def getMatchNum(matches, ratio):
     return (matchNum, matchesMask)
 
 
-def get_res(queryPath, sampleFrame, nfeatures, des_h5, use_des_h5=True):
+def get_res(queryPath, sampleFrame, des_h5, sift, flann, use_des_h5=True):
     # comparisonImageList = []  # 记录比较结果
     resultList = []
 
-    # 创建SIFT特征提取器
-    sift = cv2.SIFT_create(nfeatures=nfeatures)
-    # 创建FLANN匹配对象
-    FLANN_INDEX_KDTREE = 0
-    indexParams = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
-    searchParams = dict(checks=50)
-    flann = cv2.FlannBasedMatcher(indexParams, searchParams)
+    # des2_save = np.zeros((3, 8, nfeatures, 128))
+    # class_types = ["octopus", "shark", "turtle"]
 
-    des2_save = np.zeros((3, 8, nfeatures, 128))
-    class_types = ["octopus", "shark", "turtle"]
-
-    if sampleFrame is str:
-        sampleImage = cv2.imread(sampleFrame, 0)
-    else:
-        sampleImage = sampleFrame
+    # if sampleFrame is str:
+    #     sampleImage = cv2.imread(sampleFrame, 0)
+    # else:
+    #     sampleImage = sampleFrame
+    # sampleImage = cv2.imread(sampleFrame, 0)
+    sampleImage = sampleFrame
     kp1, des1 = sift.detectAndCompute(sampleImage, None)  # 提取样本图片的特征
     for parent, dirnames, filenames in os.walk(queryPath):
         # parent: '/Users/gmh/myfile/course/current/zju43_水下机器人设计/dataset/image_recg/all_figure_wo_color/'
@@ -73,7 +70,10 @@ def get_res(queryPath, sampleFrame, nfeatures, des_h5, use_des_h5=True):
             (matchNum, matchesMask) = getMatchNum(
                 matches, 0.9
             )  # 通过比率条件，计算出匹配程度
-            matchRatio = matchNum * 100 / len(matches)
+            if len(matches) == 0:
+                matchRatio = 0
+            else:
+                matchRatio = matchNum * 100 / len(matches)
             # drawParams = dict(
             #     matchColor=(0, 255, 0),
             #     singlePointColor=(255, 0, 0),
@@ -93,9 +93,9 @@ def get_res(queryPath, sampleFrame, nfeatures, des_h5, use_des_h5=True):
         "turtle": [mr[2] for mr in resultList if mr[0] == "turtle"],
     }
     result_avg = {
-        "octopus": sum(result["octopus"]) / len(result["octopus"]),
-        "shark": sum(result["shark"]) / len(result["shark"]),
-        "turtle": sum(result["turtle"]) / len(result["turtle"]),
+        "octopus": np.mean(result["octopus"]) if len(result["octopus"]) > 0 else 0,
+        "shark": np.mean(result["shark"]) if len(result["octopus"]) > 0 else 0,
+        "turtle": np.mean(result["turtle"]) if len(result["octopus"]) > 0 else 0,
     }
     result_avg = sorted(result_avg.items(), key=lambda x: x[1], reverse=True)
     res = result_avg[0][0]
@@ -112,23 +112,36 @@ def get_res(queryPath, sampleFrame, nfeatures, des_h5, use_des_h5=True):
 
 
 def recognize_figure(
-    frame,
-    queryPath="/Users/gmh/myfile/course/current/zju43_水下机器人设计/dataset/image_recg/all_figure_wo_color/",
-    des_h5="/Users/gmh/oasis/code/course/underwater_robot/des_dataset",
-    nfeatures=100,
+    frame, sift, flann,
+    queryPath="/home/rp24/code/underwater_robot/all_figure_wo_color",
+    des_h5="/home/rp24/code/underwater_robot/des_dataset",
 ):
-    res, result_avg = get_res(queryPath, frame, nfeatures, des_h5)
+    res, result_avg = get_res(queryPath, frame, des_h5, sift, flann)
     return res, result_avg[0][1]
 
 
 def main():
-    queryPath = "/Users/gmh/myfile/course/current/zju43_水下机器人设计/dataset/image_recg/all_figure_wo_color/"  # 图库路径
-    samplePath = "/Users/gmh/myfile/course/current/zju43_水下机器人设计/dataset/image_recg/test/IMG_9320.JPG"  # 样本图片
-    des_h5 = "/Users/gmh/oasis/code/course/underwater_robot/des_dataset"
-    nfeatures = 100
-    res = get_res(queryPath, samplePath, nfeatures, des_h5)
+    queryPath = "/home/rp24/code/underwater_robot/all_figure_wo_color"  # 图库路径
+    samplePath = "/home/rp24/code/underwater_robot/2.png"
+    des_h5 = "/home/rp24/code/underwater_robot/des_dataset"
+    res = get_res(queryPath, samplePath, des_h5)
     print(res)
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+    samplePath = "/home/rp24/code/underwater_robot/file/debug_output_20240611_075338/frames_saved_20240611075341.jpg"
+    # samplePath = "/home/rp24/code/underwater_robot/2.png"
+    frame = cv2.imread(samplePath, 0)
+
+    # 创建SIFT特征提取器
+    nfeatures=100
+    sift = cv2.SIFT_create(nfeatures=nfeatures)
+    # 创建FLANN匹配对象
+    FLANN_INDEX_KDTREE = 0
+    indexParams = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
+    searchParams = dict(checks=50)
+    flann = cv2.FlannBasedMatcher(indexParams, searchParams)
+
+    res = recognize_figure(frame, sift, flann)
+    print(res)

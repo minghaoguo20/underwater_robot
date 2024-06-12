@@ -1,3 +1,6 @@
+import os,sys
+sys.path.append("/home/rp24/.local/lib/python3.9/site-packages")
+
 import RPi.GPIO as GPIO
 import serial
 
@@ -5,6 +8,12 @@ import serial
 import time
 import struct
 import numpy as np
+
+def encode_speed(speed):
+    if speed < 0:
+        speed = 128 - speed
+    speed = np.uint8(speed)
+    return speed
 
 
 def pack_lora_msg(Cam_Sign, Cam_Flag, Cam_Angle, Cam_Err):

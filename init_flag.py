@@ -14,13 +14,5 @@ def main():
         for file in files:
             os.remove(os.path.join(result_save_dir, file))
 
-
-    # if os.path.exists(file_path):
-    #     os.remove(file_path)
-    # with open(file_path, 'w') as file:
-    #     # Write your code here to create the file or perform any other operations
-    #     pass
-
-
 if __name__ == "__main__":
     main()

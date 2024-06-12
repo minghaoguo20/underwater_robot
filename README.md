@@ -1,19 +1,17 @@
 # underwater_robot
 
-## Task
+本项目用于2024年春夏学期，机器人课程 - 浙江大学水下机器人竞赛。竞赛章程见附件[“浙江大学第八届水下机器人竞赛规则.pdf”](documents/浙江大学第八届水下机器人竞赛规则.pdf)。
 
-- 识别
-    - 巡线
-        - 转向
-        - 加速
-        - 减速
-    - 识别：圆形 / 方形
-        - 识别颜色（圆形）
-        - 方形，种类：svm图像分类
+项目主题功能：巡线、纯色卡片识别，海洋生物图片卡片识别。
 
+机器人整理图如图
 
-bug
+![](documents/robot_design.JPG)
 
-main中，巡线正常，
+摄像头位置图
 
-line 64 中，`if prepare_to_transfer:`后，如果lines中只有1个，还行，之后没测。
+![](documents/camera_position.png)
+
+TO DO LIST
+
+- [ ] 完善文档

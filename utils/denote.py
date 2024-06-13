@@ -1,5 +1,4 @@
 import os,sys
-sys.path.append("/home/rp24/.local/lib/python3.9/site-packages")
 
 import cv2
 import os
@@ -68,3 +67,10 @@ def save_img(frame_line, lines, line_to_follow, cam_angle, cam_err, speed, flag_
     frame_name = f"frames_saved_{now.strftime('%Y%m%d%H%M%S')}.jpg"
     save_path = os.path.join(cfg["output_dir"], frame_name)
     cv2.imwrite(save_path, frame_line)
+
+def hello():
+    print()
+    print(f"####################################################################")
+    print(f"# Check our official GitHub / Gitee Repo to get the latest updates #")
+    print(f"####################################################################")
+    print()

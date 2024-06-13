@@ -1,6 +1,4 @@
 import os,sys
-sys.path.append("/home/rp24/.local/lib/python3.9/site-packages")
-# print(sys.path)
 
 import cv2
 import os
@@ -8,10 +6,10 @@ import time
 from datetime import datetime
 from datetime import timedelta
 
+from utils.denote import *
 from utils.line import *
 from utils.gpio import *
 from utils.img import *
-from utils.denote import *
 from utils.motion import *
 from utils.iojson import *
 
@@ -441,6 +439,7 @@ def main(cfg):
 if __name__ == "__main__":
     # time.sleep(15)
     dt = datetime.now()
+    hello()
     print(f"start @ {dt.strftime('%Y-%m-%d_%H:%M:%S')}")
     cfg = {
         "sample_delta": 0.01,

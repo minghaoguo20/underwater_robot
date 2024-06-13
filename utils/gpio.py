@@ -1,5 +1,4 @@
 import os,sys
-sys.path.append("/home/rp24/.local/lib/python3.9/site-packages")
 
 import RPi.GPIO as GPIO
 import serial
@@ -24,7 +23,7 @@ def pack_lora_msg(Cam_Sign, Cam_Flag, Cam_Angle, Cam_Err):
     Cam_Angle: 2 bytes
     Cam_Err: 2 bytes
     output:
-    msg: 9 bytes，可以直接用于 serial.Serial() 的发送
+    msg: 10 bytes，可以直接用于 serial.Serial() 的发送
 
     巡线任务当中AUV可能状态有巡线状态和识别状态
     Cam_Sign: int->1Byte 规定0代表巡线(正常运动)1代表识别(需要停止运行并且对应LED闪烁，LORA回传)巡线状态:

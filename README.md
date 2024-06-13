@@ -52,6 +52,12 @@
 
 ## 使用说明
 
+### 准备代码
+
+```shell
+git clone https://gitee.com/henryoasis/underwater_robot.git
+```
+
 ### 准备识别相关文件
 
 在项目根目录创建文件夹并命名为`file`。

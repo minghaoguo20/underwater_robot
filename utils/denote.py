@@ -72,5 +72,7 @@ def hello():
     print()
     print(f"####################################################################")
     print(f"# Check our official GitHub / Gitee Repo to get the latest updates #")
+    print(f"# GitHub: https://github.com/minghaoguo20/underwater_robot         #")
+    print(f"# Gitee:  https://gitee.com/henryoasis/underwater_robot            #")
     print(f"####################################################################")
     print()

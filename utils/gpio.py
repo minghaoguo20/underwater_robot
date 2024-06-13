@@ -1,8 +1,7 @@
 import os,sys
 
-import RPi.GPIO as GPIO
+# import RPi.GPIO as GPIO
 import serial
-
 # from serial import serial
 import time
 import struct

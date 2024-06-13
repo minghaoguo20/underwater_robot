@@ -1,5 +1,9 @@
 # underwater robot vision module
 
+We released our code in GitHub and Gitee. You can visit the following links to get the latest version of our code.
+- https://github.com/minghaoguo20/underwater_robot
+- https://gitee.com/henryoasis/underwater_robot
+
 本项目用于2024年春夏学期，机器人课程 - 浙江大学水下机器人竞赛。竞赛章程见附件[浙江大学第八届水下机器人竞赛规则.pdf](documents/浙江大学第八届水下机器人竞赛规则.pdf)。
 
 > 本项目由 超级霸王龙战队 共同搭建，我们的成员包括曾永明(3210101442@zju.edu.cn)、封嘉仪(jiayii@zju.edu.cn)、郭明皓(zjugmh@zju.edu.cn)、吴恒(3210103458@zju.edu.cn)。
